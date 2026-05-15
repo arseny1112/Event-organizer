@@ -1,0 +1,374 @@
+import React, { useState, useEffect } from 'react'
+import { getEvents } from '../api/clients'
+import type { Event } from '../api/types'
+import CalendarWidget from '../components/CalendarWidget'
+
+const DashboardPage: React.FC<{ searchQuery?: string }> = ({ searchQuery = '' }) => {  const [events, setEvents] = useState<Event[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  
+  const [selectedCategories, setSelectedCategories] = useState({
+    meeting: true,
+    negotiation: true,
+    conference: true,
+    training: true,
+  })
+
+  const today = new Date()
+  const [currentDate, setCurrentDate] = useState(new Date())
+  const [selectedDate, setSelectedDate] = useState<number>(today.getDate())
+  const [viewAllEvents, setViewAllEvents] = useState(false)
+
+  const toggleCategory = (category: keyof typeof selectedCategories) => {
+    setSelectedCategories(prev => ({ ...prev, [category]: !prev[category] }))
+  }
+
+  useEffect(() => {
+    loadEvents()
+  }, [])
+
+  const loadEvents = async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const response = await getEvents()
+      setEvents(response.data)
+    } catch (err) {
+      console.error('Load events error:', err)
+      setError('Не удалось загрузить события')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const categoryMap: Record<number, keyof typeof selectedCategories> = {
+    1: 'meeting',
+    2: 'negotiation',
+    3: 'conference',
+    4: 'training'
+  }
+
+  const filteredEvents = events.filter(event => {
+    const categoryKey = categoryMap[event.category_id]
+    const categoryMatch = categoryKey ? selectedCategories[categoryKey] : false
+    const q = searchQuery.trim().toLowerCase()
+    const searchMatch = q === '' ||
+      event.title.toLowerCase().includes(q) ||
+      (event.description?.toLowerCase().includes(q) ?? false) ||
+      (event.location?.toLowerCase().includes(q) ?? false)
+    return categoryMatch && searchMatch
+  })
+
+  const displayEvents = filteredEvents.filter(event => {
+    if (searchQuery.trim() !== '') return true  // показываем все при поиске
+    const eventDate = new Date(event.start_datetime)
+    if (!viewAllEvents) {
+      return eventDate.getDate() === selectedDate && 
+             eventDate.getMonth() === currentDate.getMonth() &&
+             eventDate.getFullYear() === currentDate.getFullYear()
+    }
+    return true
+  }).sort((a, b) => {
+    return new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime()
+  })
+
+  const getHeaderTitle = () => {
+    if (searchQuery.trim() !== '') return `${searchQuery}`
+    if (viewAllEvents) return 'Все события'
+    
+    const selectedDateTime = new Date(currentDate.getFullYear(), currentDate.getMonth(), selectedDate)
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+    const isPastDate = selectedDateTime < todayStart
+    
+    return isPastDate ? 'Прошедшие события' : 'Предстоящие события'
+  }
+
+  const categoriesConfig = [
+    { 
+      id: 'meeting' as const, 
+      svg: (
+        <svg width="10" height="10" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="8" height="8" rx="4" fill="#015FAF"/>
+        </svg>
+      ),
+      label: 'Совещание', 
+      color: '#015FAF', 
+      dbId: 1 
+    },
+    { 
+      id: 'negotiation' as const, 
+      svg: (
+        <svg width="10" height="10" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="12" height="12" rx="6" fill="#05591D"/>
+        </svg>
+      ),
+      label: 'Встреча (переговоры)', 
+      color: '#05591D', 
+      dbId: 2 
+    },
+    { 
+      id: 'conference' as const, 
+      svg: (
+        <svg width="10" height="10" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="8" height="8" rx="4" fill="#5F4900"/>
+        </svg>
+      ),
+      label: 'Конференция', 
+      color: '#5F4900', 
+      dbId: 3 
+    },
+    { 
+      id: 'training' as const, 
+      svg: (
+        <svg width="10" height="10" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="8" height="8" rx="4" fill="#EFC13A"/>
+        </svg>
+      ),
+      label: 'Обучение', 
+      color: '#EFC13A', 
+      dbId: 4 
+    },
+  ]
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date() // создаём новый объект каждый раз
+    return {
+      day: String(date.getDate()).padStart(2, '0'),
+      month: date.toLocaleString('ru-RU', { month: 'short' }).toUpperCase(),
+      time: date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+      isPast: date < now
+    }
+  }
+
+  const getCategoryConfig = (categoryId: number) => {
+    return categoriesConfig.find(c => c.dbId === categoryId) || categoriesConfig[0]
+  }
+
+  const getCategoryBg = (categoryId: number) => {
+    const color = getCategoryConfig(categoryId).color
+    if (color === '#015FAF') return '#6CAAFF33'
+    if (color === '#EFC13A') return '#FFDF9366'
+    if (color === '#5F4900') return '#5F49001A'
+    if (color === '#05591D') return '#05591D1A'
+    return '#EFF4FF'
+  }
+
+  const generateCalendarDays = () => {
+    const year = currentDate.getFullYear()
+    const month = currentDate.getMonth()
+    
+    const firstDayOfMonth = new Date(year, month, 1)
+    const lastDayOfMonth = new Date(year, month + 1, 0)
+    const daysInMonth = lastDayOfMonth.getDate()
+    const firstDayOfWeek = firstDayOfMonth.getDay() || 7
+    
+    const days: Array<{
+      day: number
+      isCurrentMonth: boolean
+      events: Event[]
+      isSelected: boolean
+      isToday: boolean
+    }> = []
+
+    const prevMonthLastDay = new Date(year, month, 0).getDate()
+    for (let i = firstDayOfWeek - 1; i > 0; i--) {
+      const day = prevMonthLastDay - i + 1
+      days.push({ day, isCurrentMonth: false, events: [], isSelected: false, isToday: false })
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day)
+      const isToday = date.toDateString() === today.toDateString()
+      const isSelected = day === selectedDate && !viewAllEvents
+
+      const dayEvents = filteredEvents.filter(event => {
+        const eventDate = new Date(event.start_datetime)
+        return eventDate.getDate() === day && 
+               eventDate.getMonth() === month && 
+               eventDate.getFullYear() === year
+      })
+
+      days.push({ day, isCurrentMonth: true, events: dayEvents, isSelected, isToday })
+    }
+
+    const remainingDays = 42 - days.length
+    for (let day = 1; day <= remainingDays; day++) {
+      days.push({ day, isCurrentMonth: false, events: [], isSelected: false, isToday: false })
+    }
+
+    return days
+  }
+
+  const calendarDays = generateCalendarDays()
+  const prevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))
+  const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))
+
+  const handleViewAll = () => {
+    setViewAllEvents(true)
+    setSelectedDate(today.getDate())
+    setCurrentDate(new Date())
+  }
+
+  const handleDateClick = (day: number) => {
+    setViewAllEvents(false)
+    setSelectedDate(day)
+  }
+
+  const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь']
+
+  return (
+    <div className="min-h-screen p-[24px] ">
+      <div className="max-w-[1200px] mx-auto">
+        
+        <div className="mb-8">
+          <h1 className="text-[32px] font-bold text-[#0B1C30] mb-[4px]">Рабочий стол</h1>
+          <p className="text-[16px] text-[#5F4900] leading-relaxed">
+            Обзор расписания и предстоящих мероприятий.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          <div className="lg:col-span-4 space-y-6">
+            
+            <div className="bg-[#FFFFFF] border-[1px] border-[#C0C9BB] rounded-[15px] p-[16px]">
+              <h2 className="text-[20px] font-bold text-[#0B1C30] mb-4">Категории</h2>
+              
+              <div className="space-y-3">
+                {categoriesConfig.map((cat) => (
+                  <label key={cat.id} className="flex items-center gap-3 cursor-pointer group">
+                    <div className="relative flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedCategories[cat.id]}
+                        onChange={() => toggleCategory(cat.id)}
+                        className="w-5 h-5 border-2 border-[#05591D] rounded-[4px] appearance-none checked:bg-[#05591D] checked:border-[#05591D] transition-colors"
+                      />
+                      {selectedCategories[cat.id] && (
+                        <svg className="absolute w-3 h-3 text-white left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="w-4 h-4 flex-shrink-0 ">
+                      {cat.svg}
+                    </div>
+                    <span className="text-[14px] text-[#0B1C30] group-hover:text-[#015FAF] transition-colors">{cat.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <CalendarWidget
+  selectedDate={viewAllEvents ? undefined : new Date(currentDate.getFullYear(), currentDate.getMonth(), selectedDate)}
+  onDateSelect={(date) => {
+    setViewAllEvents(false)
+    setSelectedDate(date.getDate())
+    setCurrentDate(date)
+  }}
+  showEvents={true}
+  events={filteredEvents}
+  categoryFilter={Object.fromEntries(
+    Object.entries(selectedCategories).map(([key, enabled]) => {
+      const dbId = Object.entries(categoryMap).find(([, v]) => v === key)?.[0]
+      return [Number(dbId), enabled]
+    })
+  )}
+/>
+
+          </div>
+
+          <div className="lg:col-span-8">
+            <div className="bg-white border-2 border-[#EFF4FF] rounded-[16px] overflow-hidden">
+              
+              <div className="flex items-center justify-between px-6 py-4 bg-[#EFF4FF] border-b-2 border-[#EFF4FF]">
+                <h2 className="text-[24px] font-bold text-[#0B1C30]">
+                  {getHeaderTitle()}
+                </h2>
+                <button 
+                  onClick={handleViewAll}
+                  className="text-[14px] font-medium text-[#05591D] hover:text-[#015FAF] transition-colors"
+                >
+                  Смотреть все
+                </button>
+              </div>
+
+              {isLoading && <div className="p-12 text-center text-[#5F4900]">Загрузка...</div>}
+              {error && <div className="p-12 text-center text-red-600">{error}</div>}
+              
+              {!isLoading && !error && displayEvents.length === 0 && (
+                <div className="p-12 text-center text-[#5F4900]">
+                  {viewAllEvents ? 'Нет событий в выбранных категориях.' : 'На этот день событий нет.'}
+                </div>
+              )}
+
+              {!isLoading && !error && displayEvents.length > 0 && (
+                <div className="divide-y divide-[#EFF4FF]">
+                  {displayEvents.map((event) => {
+                    const { day, month, time, isPast } = formatDate(event.start_datetime)
+                    const category = getCategoryConfig(event.category_id)
+                    const bg = getCategoryBg(event.category_id)
+                    const categoryName = event.category_name || category.label
+
+                    return (
+                      <div key={event.id} className={`p-6 transition-colors ${isPast ? 'bg-[#F8F9FA]' : 'hover:bg-[#EFF4FF]'}`}>
+                        <div className="flex gap-6">
+                          
+                          <div className="flex-shrink-0 w-16 text-center">
+                            <div className={`text-[32px] font-bold leading-none ${isPast ? 'text-[#94A3B8]' : 'text-[#05591D]'}`}>
+                              {day}
+                            </div>
+                            <div className="text-[12px] font-medium text-[#5F4900] mt-1">{month}</div>
+                            <div className={`text-[14px] mt-1 ${isPast ? 'text-[#94A3B8]' : 'text-[#5F4900]'}`}>{time}</div>
+                            {isPast && <div className="text-[10px] text-[#94A3B8] mt-1 uppercase font-medium tracking-wider">Прошло</div>}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-3 mb-3 flex-wrap">
+                              
+
+                              <div className="px-3 flex py-1 gap-[8px] items-center rounded-[8px] text-[14px] font-bold" style={{ backgroundColor: bg, color: category.color }}>
+                              <div className="w-[8px] h-[8px]  flex-shrink-0">
+                                {category.svg}
+                              </div>
+                              <div>
+                                {categoryName}
+                              </div>
+                              </div>
+
+                              {event.location && (
+                                <div className="flex items-center gap-1 text-[14px] text-[#5F4900] min-w-0">
+                                  <svg className="flex-shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                                    <circle cx="12" cy="10" r="3"/>
+                                  </svg>
+                                  <span className="truncate">{event.location}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            <h3 className={`text-[18px] font-regular mb-1 truncate ${isPast ? 'text-[#94A3B8] line-through' : 'text-[#0B1C30]'}`}>
+                              {event.title}
+                            </h3>
+                            
+                            {event.description && (
+                              <p className="text-[14px] text-[#5F4900] font-regular leading-relaxed line-clamp-2">{event.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default DashboardPage
