@@ -15,7 +15,6 @@ const Header: React.FC<HeaderProps> = ({
   onSearch,
   onNotificationsClick,
   onProfileClick,
-  onLogout,
 }) => {
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
   const navigate = useNavigate()

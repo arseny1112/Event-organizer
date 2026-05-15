@@ -5,7 +5,6 @@ export interface User {
     role: string | null
     department: string | null
     last_login: string | null
-    timezone: string
   }
   
   export interface Stats {

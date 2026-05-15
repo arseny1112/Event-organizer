@@ -155,55 +155,6 @@ const DashboardPage: React.FC<{ searchQuery?: string }> = ({ searchQuery = '' })
     return '#EFF4FF'
   }
 
-  const generateCalendarDays = () => {
-    const year = currentDate.getFullYear()
-    const month = currentDate.getMonth()
-    
-    const firstDayOfMonth = new Date(year, month, 1)
-    const lastDayOfMonth = new Date(year, month + 1, 0)
-    const daysInMonth = lastDayOfMonth.getDate()
-    const firstDayOfWeek = firstDayOfMonth.getDay() || 7
-    
-    const days: Array<{
-      day: number
-      isCurrentMonth: boolean
-      events: Event[]
-      isSelected: boolean
-      isToday: boolean
-    }> = []
-
-    const prevMonthLastDay = new Date(year, month, 0).getDate()
-    for (let i = firstDayOfWeek - 1; i > 0; i--) {
-      const day = prevMonthLastDay - i + 1
-      days.push({ day, isCurrentMonth: false, events: [], isSelected: false, isToday: false })
-    }
-
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, month, day)
-      const isToday = date.toDateString() === today.toDateString()
-      const isSelected = day === selectedDate && !viewAllEvents
-
-      const dayEvents = filteredEvents.filter(event => {
-        const eventDate = new Date(event.start_datetime)
-        return eventDate.getDate() === day && 
-               eventDate.getMonth() === month && 
-               eventDate.getFullYear() === year
-      })
-
-      days.push({ day, isCurrentMonth: true, events: dayEvents, isSelected, isToday })
-    }
-
-    const remainingDays = 42 - days.length
-    for (let day = 1; day <= remainingDays; day++) {
-      days.push({ day, isCurrentMonth: false, events: [], isSelected: false, isToday: false })
-    }
-
-    return days
-  }
-
-  const calendarDays = generateCalendarDays()
-  const prevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))
-  const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))
 
   const handleViewAll = () => {
     setViewAllEvents(true)
@@ -211,12 +162,6 @@ const DashboardPage: React.FC<{ searchQuery?: string }> = ({ searchQuery = '' })
     setCurrentDate(new Date())
   }
 
-  const handleDateClick = (day: number) => {
-    setViewAllEvents(false)
-    setSelectedDate(day)
-  }
-
-  const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь']
 
   return (
     <div className="min-h-screen p-[24px] ">
@@ -340,10 +285,19 @@ const DashboardPage: React.FC<{ searchQuery?: string }> = ({ searchQuery = '' })
 
                               {event.location && (
                                 <div className="flex items-center gap-1 text-[14px] text-[#5F4900] min-w-0">
-                                  <svg className="flex-shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                                    <circle cx="12" cy="10" r="3"/>
-                                  </svg>
+                                  {event.location === 'Zoom' ? (
+                                    <svg width="12" height="10" viewBox="0 0 12 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M1.16667 9.33333C0.845833 9.33333 0.571181 9.2191 0.342708 8.99063C0.114236 8.76215 0 8.4875 0 8.16667V1.16667C0 0.845833 0.114236 0.571181 0.342708 0.342708C0.571181 0.114236 0.845833 0 1.16667 0H8.16667C8.4875 0 8.76215 0.114236 8.99063 0.342708C9.2191 0.571181 9.33333 0.845833 9.33333 1.16667V3.79167L11.6667 1.45833V7.875L9.33333 5.54167V8.16667C9.33333 8.4875 9.2191 8.76215 8.99063 8.99063C8.76215 9.2191 8.4875 9.33333 8.16667 9.33333H1.16667ZM1.16667 8.16667H8.16667V1.16667H1.16667V8.16667ZM1.16667 8.16667V1.16667V8.16667Z" fill="#40493E"/>
+                                    </svg>
+                                    
+                                  ) : (
+
+                                    <svg width="10" height="12" viewBox="0 0 10 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M4.66667 5.83333C4.9875 5.83333 5.26215 5.7191 5.49062 5.49062C5.7191 5.26215 5.83333 4.9875 5.83333 4.66667C5.83333 4.34583 5.7191 4.07118 5.49062 3.84271C5.26215 3.61424 4.9875 3.5 4.66667 3.5C4.34583 3.5 4.07118 3.61424 3.84271 3.84271C3.61424 4.07118 3.5 4.34583 3.5 4.66667C3.5 4.9875 3.61424 5.26215 3.84271 5.49062C4.07118 5.7191 4.34583 5.83333 4.66667 5.83333ZM4.66667 10.1208C5.85278 9.03194 6.73264 8.04271 7.30625 7.15312C7.87986 6.26354 8.16667 5.47361 8.16667 4.78333C8.16667 3.72361 7.82882 2.8559 7.15312 2.18021C6.47743 1.50451 5.64861 1.16667 4.66667 1.16667C3.68472 1.16667 2.8559 1.50451 2.18021 2.18021C1.50451 2.8559 1.16667 3.72361 1.16667 4.78333C1.16667 5.47361 1.45347 6.26354 2.02708 7.15312C2.60069 8.04271 3.48056 9.03194 4.66667 10.1208ZM4.66667 11.6667C3.10139 10.3347 1.93229 9.09757 1.15937 7.95521C0.386458 6.81285 0 5.75556 0 4.78333C0 3.325 0.469097 2.16319 1.40729 1.29792C2.34549 0.432639 3.43194 0 4.66667 0C5.90139 0 6.98785 0.432639 7.92604 1.29792C8.86424 2.16319 9.33333 3.325 9.33333 4.78333C9.33333 5.75556 8.94688 6.81285 8.17396 7.95521C7.40104 9.09757 6.23194 10.3347 4.66667 11.6667Z" fill="#40493E"/>
+</svg>
+
+                                  )}
+
                                   <span className="truncate">{event.location}</span>
                                 </div>
                               )}

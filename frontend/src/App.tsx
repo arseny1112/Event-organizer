@@ -22,7 +22,6 @@ export default function App() {
   const isAuthenticated = !!localStorage.getItem('token')
   const role = getRole()
 
-  // 🔥 Глобальный поиск
   const [searchQuery, setSearchQuery] = useState('')
 
   const menuItems = [
@@ -104,7 +103,6 @@ export default function App() {
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
             
-            {/* 🔥 Передаём searchQuery в DashboardPage */}
             <Route path="/" element={
               <PrivateRoute>
                 <DashboardPage searchQuery={searchQuery} />

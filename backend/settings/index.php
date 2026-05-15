@@ -39,7 +39,6 @@ if ($method === 'GET') {
 if ($method === 'PUT') {
     $b = get_body();
     
-    // 1. Обновляем настройки в таблице settings
     $stmt = $pdo->prepare(
         'UPDATE settings SET
          vk_notify=?, notify_day_before=?, notify_hour_before=?,
@@ -55,7 +54,6 @@ if ($method === 'PUT') {
         $user['id'],
     ]);
     
-    // 🔥 2. Обновляем email в таблице users (ЭТОГО НЕ ХВАТАЛО!)
     if (!empty($b['email'])) {
         $stmt = $pdo->prepare('UPDATE users SET email = ? WHERE id = ?');
         $stmt->execute([$b['email'], $user['id']]);

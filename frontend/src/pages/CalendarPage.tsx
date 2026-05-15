@@ -14,23 +14,17 @@ const CreateEventPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<Date | undefined>(undefined)
   
-  // 🔥 Состояние для показа/скрытия календаря
   const [showCalendar, setShowCalendar] = useState(false)
   const dateFieldRef = useRef<HTMLDivElement>(null)
 
-  const [dateValue, setDateValue] = useState('');
-  const [timeValue, setTimeValue] = useState('');
-
-  // В начале компонента, после других useState
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
   const [now, setNow] = useState<Date>(new Date());
 
-  // Обновляем "текущее время" каждую минуту, чтобы валидация была актуальной
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(timer);
   }, []);
 
-  // 🔥 Закрытие календаря при клике вне его
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dateFieldRef.current && !dateFieldRef.current.contains(event.target as Node)) {
@@ -44,27 +38,6 @@ const CreateEventPage: React.FC = () => {
     }
   }, [showCalendar])
 
-  // Форматируем отображаемое значение
-  const displayValue = useMemo(() => {
-    if (!dateValue && !timeValue) return '';
-    const datePart = dateValue || 'mm/dd/yyyy';
-    const timePart = timeValue ? timeValue.replace(':', '--') + ' --' : '--:-- --';
-    return `${datePart}, ${timePart}`;
-  }, [dateValue, timeValue]);
-
-  // Скрытые инпуты для реального выбора
-  const hiddenDateRef = useRef<HTMLInputElement>(null);
-  const hiddenTimeRef = useRef<HTMLInputElement>(null);
-
-  const handleContainerClick = () => {
-    if (!dateValue) {
-      hiddenDateRef.current?.showPicker?.();
-    } else if (!timeValue) {
-      hiddenTimeRef.current?.showPicker?.();
-    }
-  };
-
-  // Форма события
   const [formData, setFormData] = useState({
     title: '',
     date: '',
@@ -81,11 +54,9 @@ const CreateEventPage: React.FC = () => {
     }
   }, [formData.date])
   
-  // 🔥 Проверка: выбрано ли время в прошлом
   const isPastEvent = useMemo(() => {
     if (!formData.date || !formData.time) return false;
     
-    // Парсим выбранную дату и время
     const [year, month, day] = formData.date.split('-').map(Number);
     const [hours, minutes] = formData.time.split(':').map(Number);
     
@@ -93,13 +64,11 @@ const CreateEventPage: React.FC = () => {
     return selected < now;
   }, [formData.date, formData.time, now]);
 
-  // 🔥 Настройки уведомлений (синхронизируются с сервером)
   const [vkEnabled, setVkEnabled] = useState(false)
   const [emailEnabled, setEmailEnabled] = useState(false)
   const [email, setEmail] = useState('')
   const [showVkModal, setShowVkModal] = useState(false)
 
-  // 🔥 Загружаем настройки при монтировании
   useEffect(() => {
     loadSettings()
   }, [])
@@ -112,17 +81,14 @@ const CreateEventPage: React.FC = () => {
       setVkEnabled(!!settings.vk_notify)
       setEmailEnabled(!!settings.email_notify)
       
-      // Email берём из настроек ИЛИ из localStorage (если в БД пусто)
       const savedEmail = settings.email || localStorage.getItem('email') || ''
       setEmail(savedEmail)
     } catch (err) {
       console.error('Load settings error:', err)
-      // Fallback: берём из localStorage
       setEmail(localStorage.getItem('email') || '')
     }
   }
 
-  // 🔥 Сохраняем настройки уведомлений (отдельная функция)
   const saveNotificationSettings = async () => {
     try {
       setIsSavingSettings(true)
@@ -132,9 +98,8 @@ const CreateEventPage: React.FC = () => {
         email: email,
         notify_day_before: true,
         notify_hour_before: true,
-        vk_id: null, // Не меняем vk_id здесь
+        vk_id: null, 
       })
-      // Сохраняем email локально для быстрого доступа
       if (email) {
         localStorage.setItem('email', email)
       }
@@ -196,14 +161,6 @@ const CreateEventPage: React.FC = () => {
     }
   }
 
-  const copyVkCommand = async () => {
-    try {
-      await navigator.clipboard.writeText(VK_COMMAND_TEXT)
-    } catch (err) {
-      console.error('Copy failed:', err)
-    }
-  }
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
@@ -219,7 +176,6 @@ const CreateEventPage: React.FC = () => {
       return
     }
   
-    // 🔥 Блокируем создание события в прошлом
     if (isPastEvent) {
       setError('Нельзя создать событие на прошедшее время')
       setIsLoading(false)
@@ -227,7 +183,10 @@ const CreateEventPage: React.FC = () => {
     }
   
     try {
-      const startDatetime = `${formData.date} ${formData.time}:00`
+      // Преобразуем дату из DD/MM/YYYY в YYYY-MM-DD для БД
+      const [dd, mm, yyyy] = formData.date.split('/')
+      const formattedDate = `${yyyy}-${mm}-${dd}`
+      const startDatetime = `${formattedDate} ${formData.time}:00`
       
       await createEvent({
         title: formData.title,
@@ -254,12 +213,6 @@ const CreateEventPage: React.FC = () => {
         
         {/* Header Section */}
         <div className="mb-[32px]">
-          <a href="/calendar" className="flex items-center gap-2 text-[#05591D] text-sm font-medium mb-[12px] hover:underline cursor-pointer">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            Назад к календарю
-          </a>
           <h1 className="text-[32px] font-bold text-[#0B1C30]">
             Создание события
           </h1>
@@ -298,99 +251,149 @@ const CreateEventPage: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                 {/* Date */}
                 <div>
-                  <label className="block text-xs font-semibold text-[#40493E] uppercase tracking-wider mb-3">
-                    Дата и время
-                  </label>
-                  
-                  {/* 🔥 Контейнер для поля даты с рефом */}
-                  <div ref={dateFieldRef} className="relative">
-                    <div className="flex gap-3 border-b-[1px] border-[#C0C9BB]">
-                      {/* Иконка календаря + поле даты */}
-                      <div 
-                        className="relative flex items-center focus-within:border-[#05591D] transition-colors w-32 cursor-pointer"
-                        onClick={() => setShowCalendar(true)}
-                      >
-                        <svg width="18" height="24" viewBox="0 0 18 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M2 20C1.45 20 0.979167 19.8042 0.5875 19.4125C0.195833 19.0208 0 18.55 0 18V4C0 3.45 0.195833 2.97917 0.5875 2.5875C0.979167 2.19583 1.45 2 2 2H3V0H5V2H13V0H15V2H16C16.55 2 17.0208 2.19583 17.4125 2.5875C17.8042 2.97917 18 3.45 18 4V18C18 18.55 17.8042 19.0208 17.4125 19.4125C17.0208 19.8042 16.55 20 16 20H2ZM2 18H16V8H2V18ZM2 6H16V4H2V6ZM2 6V4V6Z" fill="#C0C9BB"/>
-                        </svg>
+  <label className="block text-xs font-semibold text-[#40493E] uppercase tracking-wider mb-3">
+    Дата и время
+  </label>
+  
+  <div ref={dateFieldRef} className="relative">
+    <div className="flex gap-3 border-b-[1px] border-[#C0C9BB]">
+      <div 
+        className="relative flex items-center focus-within:border-[#05591D] transition-colors w-32 cursor-pointer"
+        onClick={() => setShowCalendar(true)}
+      >
+        <svg width="18" height="24" viewBox="0 0 18 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2 20C1.45 20 0.979167 19.8042 0.5875 19.4125C0.195833 19.0208 0 18.55 0 18V4C0 3.45 0.195833 2.97917 0.5875 2.5875C0.979167 2.19583 1.45 2 2 2H3V0H5V2H13V0H15V2H16C16.55 2 17.0208 2.19583 17.4125 2.5875C17.8042 2.97917 18 3.45 18 4V18C18 18.55 17.8042 19.0208 17.4125 19.4125C17.0208 19.8042 16.55 20 16 20H2ZM2 18H16V8H2V18ZM2 6H16V4H2V6ZM2 6V4V6Z" fill="#C0C9BB"/>
+        </svg>
+        <input
+          name="date"
+          type="text"
+          value={formData.date || ''}
+          readOnly
+          placeholder="mm/dd/yyyy"
+          className="w-full ml-[15px] text-[16px] text-[#0B1C30] py-2 outline-none bg-transparent cursor-pointer"
+          onClick={() => setShowCalendar(true)}
+        />
+      </div>
 
-                        <input
-                          name="date"
-                          type="text"
-                          value={formData.date || ''}
-                          readOnly
-                          placeholder="mm/dd/yyyy"
-                          className="w-full ml-[15px] text-[16px] text-[#0B1C30] py-2 outline-none bg-transparent cursor-pointer"
-                          onClick={() => setShowCalendar(true)}
-                        />
-                      </div>
+      <div className="relative flex-1">
+        <input
+          type="text"
+          value={formData.time}
+          onChange={(e) => {
+            let value = e.target.value.replace(/[^0-9]/g, '')
+            
+            if (value.length >= 1) {
+              const firstDigit = parseInt(value[0])
+              if (firstDigit > 2) {
+                value = '0' + value[0]
+              }
+            }
+            
+            if (value.length >= 2) {
+              const hours = parseInt(value.slice(0, 2))
+              if (hours > 23) {
+                value = '23' + value.slice(2)
+              }
+            }
+            
+            if (value.length >= 3) {
+              value = value.slice(0, 2) + ':' + value.slice(2, 4)
+            }
+            
+            if (value.length >= 6) {
+              const minutes = parseInt(value.slice(3, 5))
+              if (minutes > 59) {
+                value = value.slice(0, 3) + '59'
+              }
+            }
+            
+            if (value.length <= 5) {
+              setFormData({ ...formData, time: value })
+            }
+          }}
+          onBlur={() => {
+            if (formData.time && formData.time.includes(':')) {
+              let [hours, minutes] = formData.time.split(':')
+              let h = parseInt(hours) || 0
+              let m = parseInt(minutes) || 0
+              
+              if (h > 23) h = 23
+              if (m > 59) m = 59
+              
+              const formattedTime = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+              setFormData({ ...formData, time: formattedTime })
+            }
+          }}
+          placeholder="--:--"
+          className="w-full text-[16px] text-[#0B1C30] py-2 outline-none bg-transparent placeholder-[#C0C9BB]"
+        />
+      </div>
+    </div>
 
-                      {/* Поле времени */}
-                      <div 
-                        className="relative flex items-center focus-within:border-[#05591D] transition-colors w-32 cursor-pointer"
-                        onClick={(e) => {
-                          const input = (e.currentTarget.querySelector('input') as HTMLInputElement);
-                          if (input) {
-                            input.showPicker?.();
-                            input.focus();
-                          }
-                        }}
-                      >
-                        <input
-                          name="time"
-                          type="time"
-                          value={formData.time}
-                          onChange={handleInputChange}
-                          className="w-full text-[16px] text-[#0B1C30] py-2 outline-none bg-transparent [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-inner-spin-button]:hidden"
-                        />
-                      </div>
-                    </div>
+    {showCalendar && (
+      <div className="absolute top-[-126px] w-full left-0 mt-2 z-50 shadow-xl">
+        <CalendarWidget
+          selectedDate={selectedCalendarDate}
+          onDateSelect={(date) => {
+            const yyyy = date.getFullYear()
+            const mm = String(date.getMonth() + 1).padStart(2, '0')
+            const dd = String(date.getDate()).padStart(2, '0')
+            setFormData(prev => ({ ...prev, date: `${dd}/${mm}/${yyyy}` }))
+            setShowCalendar(false)
+          }}
+          showEvents={false}
+          minDate={new Date()}
+        />
+      </div>
+    )}
+  </div>
+</div>
 
-                    {/* 🔥 КАЛЕНДАРЬ-ПОПАП (появляется при showCalendar=true) */}
-                    {showCalendar && (
-                      <div className="absolute top-[-126px] w-full left-0 mt-2 z-50 shadow-xl">
-                        <CalendarWidget
-                          selectedDate={selectedCalendarDate}
-                          onDateSelect={(date) => {
-                            // Форматируем в YYYY-MM-DD для input type="date"
-                            const yyyy = date.getFullYear()
-                            const mm = String(date.getMonth() + 1).padStart(2, '0')
-                            const dd = String(date.getDate()).padStart(2, '0')
-                            setFormData(prev => ({ ...prev, date: `${dd}/${mm}/${yyyy}` }))
-                            setShowCalendar(false) // Закрываем после выбора
-                          }}
-                          showEvents={false}  // 🔥 Без индикаторов событий
-                          minDate={new Date()} // 🔥 Блокируем прошедшие даты
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
+<div>
+  <label className="block text-xs font-semibold text-[#40493E] uppercase tracking-wider mb-3">
+    Категория
+  </label>
+  <div className="relative">
+    <button
+      type="button"
+      onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+      className="w-full text-[16px] text-left text-[#0B1C30] border-b-[1px] border-[#C0C9BB] focus:border-[#05591D] outline-none pb-2 transition-colors bg-transparent flex items-center justify-between"
+    >
+      <span className={formData.category ? 'text-[#0B1C30]' : 'text-[#C0C9BB]'}>
+        {formData.category === '1' && 'Совещание'}
+        {formData.category === '2' && 'Встреча (переговоры)'}
+        {formData.category === '3' && 'Конференция'}
+        {formData.category === '4' && 'Обучение'}
+        {!formData.category && 'Выберите категорию'}
+      </span>
+      <svg className={`w-5 h-5 text-[#C0C9BB] transition-transform ${showCategoryDropdown ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <polyline points="6 9 12 15 18 9" />
+      </svg>
+    </button>
 
-                <div>
-                  <label className="block text-xs font-semibold text-[#40493E] uppercase tracking-wider mb-3">
-                    Категория
-                  </label>
-                  <div className="relative">
-                    <select
-                      name="category"
-                      value={formData.category}
-                      onChange={handleInputChange}
-                      className="w-full text-[16px] text-[#0B1C30] border-b-[1px] border-[#C0C9BB] focus:border-[#05591D] outline-none pb-2 transition-colors bg-transparent appearance-none cursor-pointer"
-                    >
-                      <option value="" disabled>Выберите категорию</option>
-                      <option value="1">Совещание</option>
-                      <option value="2">Встреча (переговоры)</option>
-                      <option value="3">Конференция</option>
-                      <option value="4">Обучение</option>
-                    </select>
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 text-[#C0C9BB] pointer-events-none">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="6 9 12 15 18 9"/>
-                      </svg>
-                    </div>
-                  </div>
-                </div>
+    {showCategoryDropdown && (
+      <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-[8px] shadow-lg border border-[#E2E8F0] z-50 overflow-hidden">
+        {[
+          { id: '1', name: 'Совещание' },
+          { id: '2', name: 'Встреча (переговоры)' },
+          { id: '3', name: 'Конференция' },
+          { id: '4', name: 'Обучение' },
+        ].map((cat) => (
+          <div
+            key={cat.id}
+            onClick={() => {
+              setFormData({ ...formData, category: cat.id })
+              setShowCategoryDropdown(false)
+            }}
+            className="px-4 py-3 hover:bg-[#F4F5F7] cursor-pointer text-[14px] text-[#0B1C30] transition-colors"
+          >
+            {cat.name}
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+</div>
               </div>
 
               {/* Location */}
@@ -585,7 +588,6 @@ const CreateEventPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 🔥 VK Modal (как в SettingsPage) */}
       {showVkModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-[20px] shadow-xl p-8 max-w-[420px] w-full mx-4">
@@ -605,38 +607,6 @@ const CreateEventPage: React.FC = () => {
             <p className="text-[14px] text-[#5F4900] text-center mb-6 leading-relaxed">
               Чтобы получать уведомления о мероприятиях в VK, нужно написать нашему сообществу одно сообщение — это займёт 10 секунд.
             </p>
-
-            <div className="flex flex-col gap-3 mb-6">
-              <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-[#0077FF] text-white text-[12px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">1</div>
-                <p className="text-[14px] text-[#0B1C30]">Нажмите кнопку ниже — откроется диалог с сообществом</p>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-[#0077FF] text-white text-[12px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">2</div>
-                <div>
-                  <p className="text-[14px] text-[#0B1C30] mb-2">Отправьте сообщение:</p>
-                  <div className="flex items-center gap-2">
-                    <code className="px-3 py-1.5 bg-[#F0F4FF] rounded-[6px] text-[13px] font-mono text-[#015FAF] border border-[#C0C9BB]">
-                      {VK_COMMAND_TEXT}
-                    </code>
-                    <button
-                      onClick={copyVkCommand}
-                      className="p-1.5 text-[#5F4900] hover:text-[#015FAF] transition-colors"
-                      title="Скопировать"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2"/>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-[#05591D] text-white text-[12px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">✓</div>
-                <p className="text-[14px] text-[#0B1C30]">Готово — уведомления будут приходить в VK</p>
-              </div>
-            </div>
 
             <div className="flex gap-3">
               <button

@@ -2,7 +2,29 @@
 // backend/cron.php
 
 require_once __DIR__ . '/db.php';
-require_once __DIR__ . '/email.php'; // 🔥 Подключаем PHPMailer
+require_once __DIR__ . '/email.php'; 
+
+$lockFile = __DIR__ . '/cron.lock';
+
+// Если скрипт уже выполняется — завершаем
+if (file_exists($lockFile)) {
+    $pid = file_get_contents($lockFile);
+    if (posix_kill($pid, 0)) {
+        echo "⚠️ Крон уже запущен (PID: $pid). Выход.\n";
+        exit;
+    }
+}
+
+// Создаём lock-файл с текущим PID
+file_put_contents($lockFile, getmypid());
+
+// Удаляем lock-файл при завершении
+register_shutdown_function(function() use ($lockFile) {
+    if (file_exists($lockFile)) {
+        unlink($lockFile);
+    }
+});
+
 
 $vkToken   = 'vk1.a.6jpksTBxf8rTJn0xNYsLSPA48UXGWgBxwx716enHwfkZeIfla3N0amoZYD9myOYouIp5qE5rHZ-ysN9ifcf6FuqygHivPa9o4407Xrplxiy3_W8qFoRVe_y4AV3rEgQMj6aMX2Yf-AVK6X19kX7cwUJxUhFFtXLgl7AZAvo1lNfkEHi3UsYb7oPNvD2JYEhegqbNP3iYDmcPC0a2vRI8jQ';
 $vkGroupId = '238638283';
@@ -19,6 +41,7 @@ $stmt = $pdo->prepare(
      LEFT JOIN settings s ON s.user_id = u.id
      WHERE n.sent = 0
        AND n.notify_at <= NOW()
+       AND e.start_datetime > NOW()  -- 🔥 НЕ ОТПРАВЛЯТЬ, ЕСЛИ СОБЫТИЕ УЖЕ НАЧАЛОСЬ
        AND NOT (
          n.type = "day_before" 
          AND e.start_datetime <= DATE_ADD(NOW(), INTERVAL 2 HOUR)

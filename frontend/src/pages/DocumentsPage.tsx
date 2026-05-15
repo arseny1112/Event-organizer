@@ -1,6 +1,6 @@
 // pages/DocumentsPage.tsx
 import React, { useState, useRef, useEffect } from 'react'
-import { deleteDocument, getDocuments, getDocumentUrl, uploadDocument } from '../api/clients'
+import { deleteDocument, getDocuments, getDocumentUrl } from '../api/clients'
 import type { Document } from '../api/types'
 
 const DocumentsPage: React.FC = () => {
@@ -44,7 +44,6 @@ const DocumentsPage: React.FC = () => {
     setError(null)
 
     try {
-      const response = await uploadDocument(1, file)
       await loadDocuments()
       if (fileInputRef.current) {
         fileInputRef.current.value = ''

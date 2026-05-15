@@ -108,7 +108,6 @@ export const updateProfile = (data: {
   email: string
   password?: string
   department?: string
-  timezone?: string
 }) => api.put<{ message: string }>('/profile/index.php', data)
 
 // ─── Настройки ───────────────────────────────────────

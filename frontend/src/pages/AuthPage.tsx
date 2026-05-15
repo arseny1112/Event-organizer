@@ -9,7 +9,6 @@ interface RegistrationData {
   confirmPassword: string;
 }
 
-// PKCE helpers
 function generateCodeVerifier(): string {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
@@ -65,10 +64,9 @@ const AuthPage: React.FC = () => {
     if (params.get('vk_code')) {
       const code = params.get('vk_code')!
       const codeVerifier = localStorage.getItem('vk_code_verifier') || ''
-      const deviceId = params.get('device_id') || localStorage.getItem('vk_device_id') || ''
       
       window.history.replaceState(null, '', window.location.pathname)
-      handleVKExchange(code, codeVerifier, deviceId)
+      handleVKExchange(code, codeVerifier)
     }
   }, [navigate]);
 
@@ -109,7 +107,6 @@ const AuthPage: React.FC = () => {
       console.log('=== FULL RESPONSE ===', response);
       console.log('=== RESPONSE DATA ===', response.data);
       
-      // Axios возвращает { data: {...} }, поэтому берём response.data
       saveAuth(response.data);
       navigate('/');
     } catch (err: any) {
@@ -119,8 +116,7 @@ const AuthPage: React.FC = () => {
     }
   };
 
-  // Обмен code на токен через бэкенд
-  const handleVKExchange = async (code: string, codeVerifier: string, deviceId: string) => {
+  const handleVKExchange = async (code: string, codeVerifier: string) => {
         setIsLoading(true)
     setError(null)
     try {

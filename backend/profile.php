@@ -31,6 +31,5 @@ respond([
     'role' => $user['role'] ?? 'user',
     'department' => $user['department'] ?? '',
     'lastLogin' => date('d.m.Y H:i', strtotime($user['last_login'] ?? 'now')),
-    'timezone' => $user['timezone'] ?? 'Москва',
 ]);
 ?>

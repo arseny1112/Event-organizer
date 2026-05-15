@@ -13,7 +13,6 @@ const ProfileEditPage: React.FC = () => {
     name: '',
     email: '',
     department: '',
-    timezone: '',
   })
 
   const [roleDisplay, setRoleDisplay] = useState('Пользователь')
@@ -21,8 +20,6 @@ const ProfileEditPage: React.FC = () => {
   useEffect(() => {
     loadProfile()
   }, [])
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-  const timezoneCity = timezone.split('/')[1]?.replace(/_/g, ' ')
 
   const loadProfile = async () => {
     try {
@@ -33,7 +30,6 @@ const ProfileEditPage: React.FC = () => {
         name: localStorage.getItem('name') || '',
         email: data.email || '',
         department: data.department || '',
-        timezone: timezoneCity || '',
       })
 
       const role = data.role || 'user'
@@ -67,7 +63,6 @@ const ProfileEditPage: React.FC = () => {
         name: formData.name,
         email: formData.email,
         department: formData.department,
-        timezone: formData.timezone,
       })
       navigate('/profile')
     } catch (err: any) {
@@ -179,17 +174,6 @@ const ProfileEditPage: React.FC = () => {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-[14px] font-medium text-[#40493E] mb-2">Часовой пояс</label>
-                  <input
-                    type="text"
-                    name="timezone"
-                    value={formData.timezone}
-                    onChange={handleInputChange}
-                    placeholder="Europe/Moscow"
-                    className="w-full px-4 py-3 border border-[#C0C9BB] rounded-[12px] text-[15px] text-[#0B1C30] placeholder-[#94A3B8] focus:outline-none focus:border-[#015FAF] focus:ring-2 focus:ring-[#ECFDF5]"
-                  />
-                </div>
               </div>
 
               <div className="flex justify-end gap-4 pt-6 mt-6 border-t border-[#E8ECE6]">

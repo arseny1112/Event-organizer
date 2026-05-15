@@ -9,7 +9,6 @@ interface UserProfile {
   role: string;
   department: string;
   lastLogin: string;
-  timezone: string;
 }
 
 interface EventStats {
@@ -40,8 +39,6 @@ const ProfilePage: React.FC = () => {
   
         const { data } = await getProfile()
   
-        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-        const timezoneCity = timezone.split('/')[1]?.replace(/_/g, ' ')
   
         setUser({
           id: 0,
@@ -52,7 +49,6 @@ const ProfilePage: React.FC = () => {
           lastLogin: data.last_login
             ? new Date(data.last_login).toLocaleString('ru-RU')
             : '—',
-          timezone: timezoneCity || 'Неизвестно',
         })
   
         setStats({
@@ -235,17 +231,10 @@ const ProfilePage: React.FC = () => {
                 </span>
               </div>
 
-              <div className="flex justify-between items-center py-2.5 sm:py-3 md:py-[12px]" style={{ borderBottom: '1px solid #E8ECE6' }}>
+              <div className="flex justify-between items-center py-2.5 sm:py-3 md:py-[12px]" >
                 <span className="text-[13px] sm:text-[14px] md:text-[15px] text-[#666666]">Последний вход</span>
                 <span className="text-[12px] sm:text-[13px] md:text-[15px] font-semibold text-[#0B1C30] text-right ml-2 break-all">
                   {user.lastLogin}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center py-2.5 sm:py-3 md:py-[12px]">
-                <span className="text-[13px] sm:text-[14px] md:text-[15px] text-[#666666]">Часовой пояс</span>
-                <span className="text-[13px] sm:text-[14px] md:text-[15px] font-semibold text-[#0B1C30] text-right ml-2">
-                  {user.timezone}
                 </span>
               </div>
             </div>

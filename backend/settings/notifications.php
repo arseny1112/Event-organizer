@@ -8,7 +8,6 @@ require_once '../helpers.php';
 $user = get_user_from_token($pdo);
 $method = $_SERVER['REQUEST_METHOD'];
 
-// Получение текущих настроек
 if ($method === 'GET') {
     try {
         $stmt = $pdo->prepare(
@@ -30,7 +29,6 @@ if ($method === 'GET') {
     }
 }
 
-// Обновление настроек
 if ($method === 'PUT') {
     $body = json_decode(file_get_contents('php://input'), true);
     

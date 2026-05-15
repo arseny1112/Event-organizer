@@ -35,25 +35,49 @@ const SettingsPage: React.FC = () => {
     }
   }
 
-  const handleVkToggle = () => {
+  const handleVkToggle = async () => {
     if (!vkEnabled) {
       setShowVkModal(true)
     } else {
       setVkEnabled(false)
-      updateSettings({
-        vk_notify: false,
-        vk_id: null,
-        notify_day_before: true,
-        notify_hour_before: true,
-        email_notify: emailEnabled,
-      })
+      setIsSaving(true)
+      try {
+        await updateSettings({
+          vk_notify: false,
+          vk_id: null,
+          notify_day_before: true,
+          notify_hour_before: true,
+          email_notify: emailEnabled,
+          email: email,
+        })
+      } catch (err) {
+        console.error('VK disable error:', err)
+      } finally {
+        setIsSaving(false)
+      }
     }
   }
 
-  const handleVkModalConfirm = () => {
+  const handleVkModalConfirm = async () => {
     setVkEnabled(true)
     setShowVkModal(false)
     window.open(VK_DIALOG_URL, '_blank')
+  
+    setIsSaving(true)
+    try {
+      await updateSettings({
+        vk_notify: true,
+        notify_day_before: true,
+        notify_hour_before: true,
+        email_notify: emailEnabled,
+        email: email,
+        vk_id: null,
+      })
+    } catch (err) {
+      console.error('VK save error:', err)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const copyVkCommand = async () => {
@@ -118,39 +142,6 @@ const SettingsPage: React.FC = () => {
             <p className="text-[13px] sm:text-[14px] text-[#5F4900] text-center mb-5 sm:mb-6 leading-relaxed">
               Чтобы получать уведомления о мероприятиях в VK, нужно написать нашему сообществу одно сообщение — это займёт 10 секунд.
             </p>
-
-            {/* Шаги */}
-            <div className="flex flex-col gap-2.5 sm:gap-3 mb-5 sm:mb-6">
-              <div className="flex items-start gap-2.5 sm:gap-3">
-                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-[#0077FF] text-white text-[11px] sm:text-[12px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">1</div>
-                <p className="text-[13px] sm:text-[14px] text-[#0B1C30]">Нажмите кнопку ниже — откроется диалог с сообществом</p>
-              </div>
-              <div className="flex items-start gap-2.5 sm:gap-3">
-                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-[#0077FF] text-white text-[11px] sm:text-[12px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">2</div>
-                <div >
-                  <p className="text-[13px] sm:text-[14px] text-[#0B1C30] mb-1.5 sm:mb-2">Отправьте сообщение:</p>
-                  <div className="flex items-center gap-1.5 sm:gap-2">
-                    <code className="px-2.5 py-1 sm:px-3 sm:py-1.5 bg-[#F0F4FF] rounded-[6px] text-[12px] sm:text-[13px] font-mono text-[#015FAF] border border-[#C0C9BB] break-all">
-                      {VK_COMMAND_TEXT}
-                    </code>
-                    <button
-                      onClick={copyVkCommand}
-                      className="p-1.5 text-[#5F4900] hover:text-[#015FAF] transition-colors flex-shrink-0"
-                      title="Скопировать"
-                    >
-                      <svg width="14" height="14" sm-width="16" sm-height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2"/>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-start gap-2.5 sm:gap-3">
-                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-[#05591D] text-white text-[11px] sm:text-[12px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">✓</div>
-                <p className="text-[13px] sm:text-[14px] text-[#0B1C30]">Готово — уведомления будут приходить в VK</p>
-              </div>
-            </div>
 
             {/* Кнопки */}
             <div className="flex gap-2 sm:gap-3">

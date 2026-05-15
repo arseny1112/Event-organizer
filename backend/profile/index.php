@@ -25,7 +25,6 @@ if ($method === 'GET') {
         'avatar' => $user['avatar'],
         'department' => $user['department'],
         'last_login' => $user['last_login'],
-        'timezone'   => $user['timezone'],
         'role'   => $user['role'],
         'stats'  => [
             'total'  => (int)$total->fetchColumn(),
@@ -45,7 +44,6 @@ if ($method === 'PUT') {
     $name = trim($b['name'] ?? '');
     $email = trim($b['email'] ?? '');
     $department = trim($b['department'] ?? '');
-    $timezone = trim($b['timezone'] ?? '');
     
     if (!$name || !$email) {
         respond(['error' => 'Заполните ФИО и Email'], 422);
@@ -58,8 +56,8 @@ if ($method === 'PUT') {
         respond(['error' => 'Email уже занят'], 409);
     }
     
-    $stmt = $pdo->prepare('UPDATE users SET name = ?, email = ?, department = ?, timezone = ? WHERE id = ?');
-    $stmt->execute([$name, $email, $department, $timezone, $user['id']]);
+    $stmt = $pdo->prepare('UPDATE users SET name = ?, email = ?, department = ?,  WHERE id = ?');
+    $stmt->execute([$name, $email, $department, $user['id']]);
     
     respond(['message' => 'Профиль обновлен']);
 }
