@@ -1,38 +1,93 @@
 <?php
-require_once '../db.php';
-require_once '../helpers.php';
+header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: PUT, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
 
-if ($_SERVER['REQUEST_METHOD'] !== 'PUT') respond(['error' => 'Method not allowed'], 405);
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
 
-$user = get_user_from_token($pdo);
-$id   = (int)($_GET['id'] ?? 0);
-if (!$id) respond(['error' => 'Не указан id'], 422);
+// Чтение тела запроса
+$input = file_get_contents('php://input');
 
-$b     = get_body();
-$title = trim($b['title']          ?? '');
-$desc  = trim($b['description']    ?? '');
-$cat   = (int)($b['category_id']   ?? 0);
-$start =       $b['start_datetime'] ?? '';
-$end   =       $b['end_datetime']   ?? '';
+// --- ОТЛАДКА ---
+error_log("RAW INPUT: [" . $input . "]");
+error_log("INPUT LENGTH: " . strlen($input));
+// ---------------
 
-if (!$title || !$cat || !$start || !$end)
-    respond(['error' => 'Заполните обязательные поля'], 422);
+$data = json_decode($input, true);
 
-$stmt = $pdo->prepare(
-    'UPDATE events SET title=?, description=?, category_id=?,
-     start_datetime=?, end_datetime=?
-     WHERE id=? AND user_id=?'
-);
-$stmt->execute([$title, $desc, $cat, $start, $end, $id, $user['id']]);
+// --- ОТЛАДКА ---
+error_log("JSON DECODE RESULT: " . var_export($data, true));
+error_log("JSON ERROR: " . json_last_error_msg());
+// ---------------
 
-if ($stmt->rowCount() === 0) respond(['error' => 'Мероприятие не найдено'], 404);
+$id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
-// пересоздать уведомления
-$pdo->prepare('DELETE FROM notifications WHERE event_id=?')->execute([$id]);
-$day  = date('Y-m-d H:i:s', strtotime($start) - 86400);
-$hour = date('Y-m-d H:i:s', strtotime($start) - 3600);
-$ns = $pdo->prepare('INSERT INTO notifications (event_id,user_id,notify_at,type) VALUES (?,?,?,?)');
-$ns->execute([$id, $user['id'], $day,  'day_before']);
-$ns->execute([$id, $user['id'], $hour, 'hour_before']);
+error_log("ID FROM GET: " . $id);
 
-respond(['message' => 'Обновлено']);
+if (!$data || $id <= 0) {
+    http_response_code(400);
+    echo json_encode([
+        'error' => 'Неверный формат данных или ID', 
+        'debug' => [
+            'id' => $id,
+            'raw_input_length' => strlen($input),
+            'json_error' => json_last_error_msg(),
+            'decoded_data' => $data
+        ]
+    ]);
+    exit();
+}
+
+// ... остальной код ...
+?>
+
+
+// Извлекаем поля (с проверкой на пустоту, если они обязательные)
+$title = $data['title'] ?? '';
+$description = $data['description'] ?? '';
+$location = $data['location'] ?? '';
+$category_id = $data['category_id'] ?? 0;
+$start_datetime = $data['start_datetime'] ?? '';
+$end_datetime = $data['end_datetime'] ?? '';
+
+// ВАЛИДАЦИЯ (та самая, которая выдавала ошибку "Заполните обязательные поля")
+if (empty($title) || empty($start_datetime) || $category_id <= 0) {
+    http_response_code(422);
+    echo json_encode(['error' => 'Заполните обязательные поля']);
+    exit();
+}
+
+// Подготовка SQL запроса (используем подготовленные выражения для безопасности!)
+$sql = "UPDATE events SET 
+        title = ?, 
+        description = ?, 
+        location = ?, 
+        category_id = ?, 
+        start_datetime = ?, 
+        end_datetime = ? 
+        WHERE id = ?";
+
+$stmt = $pdo->prepare($sql);
+
+try {
+    $stmt->execute([
+        $title,
+        $description,
+        $location,
+        $category_id,
+        $start_datetime,
+        $end_datetime,
+        $id
+    ]);
+
+    echo json_encode(['success' => true, 'message' => 'Событие обновлено']);
+
+} catch (PDOException $e) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Ошибка базы данных: ' . $e->getMessage()]);
+}
+?>

@@ -60,8 +60,13 @@ export const getEvents = (params?: {
 export const createEvent = (data: EventForm) =>
   api.post<{ id: number; message: string }>('/events/index.php', data)
 
-export const updateEvent = (id: number, data: EventForm) =>
-  api.put<{ message: string }>(`/events/update.php?id=${id}`, data)
+export const updateEvent = (id: number, data: any) => {
+  return api.put(`/events/update.php?id=${id}`, data, {
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    }
+  })
+}
 
 export const deleteEvent = (id: number) =>
   api.delete<{ message: string }>(`/events/delete.php?id=${id}`)
