@@ -1,7 +1,10 @@
-// pages/DocumentsPage.tsx
 import React, { useState, useRef, useEffect } from 'react'
-import { deleteDocument, getDocuments, getDocumentUrl } from '../api/clients'
+import { deleteDocument, getDocuments, uploadDocument, getDocumentUrl } from '../api/clients'
 import type { Document } from '../api/types'
+
+// TODO: Replace this with the actual event ID from your props or URL params
+// If documents are global and not tied to an event, set this to null
+const CURRENT_EVENT_ID: number | null = null; 
 
 const DocumentsPage: React.FC = () => {
   const [documents, setDocuments] = useState<Document[]>([])
@@ -17,7 +20,8 @@ const DocumentsPage: React.FC = () => {
   const loadDocuments = async () => {
     setIsLoading(true)
     try {
-      const response = await getDocuments()
+      // Pass the event ID if filtering by event is required
+      const response = await getDocuments(CURRENT_EVENT_ID || undefined)
       setDocuments(response.data)
     } catch (err) {
       console.error('Load error:', err)
@@ -35,6 +39,7 @@ const DocumentsPage: React.FC = () => {
     const file = e.target.files?.[0]
     if (!file) return
 
+    // Validation
     if (file.size > 10 * 1024 * 1024) {
       setError('Файл слишком большой. Максимальный размер: 10MB')
       return
@@ -44,11 +49,18 @@ const DocumentsPage: React.FC = () => {
     setError(null)
 
     try {
+      // FIX: Actually call the upload API here
+      await uploadDocument(CURRENT_EVENT_ID, file)
+      
+      // Refresh the list after successful upload
       await loadDocuments()
+      
+      // Reset input
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
     } catch (err: any) {
+      console.error(err)
       setError(err.response?.data?.error || 'Ошибка загрузки файла')
     } finally {
       setIsUploading(false)
@@ -56,8 +68,10 @@ const DocumentsPage: React.FC = () => {
   }
 
   const handleDownload = (doc: Document) => {
-    const fileUrl = `http://localhost${getDocumentUrl(doc.filename)}`
-    window.location.href = fileUrl
+    const fileUrl = getDocumentUrl(doc.filename);
+    
+    // Open in new tab to trigger download/view
+    window.open(fileUrl, '_blank');
   }
 
   const handleDelete = async (id: number) => {

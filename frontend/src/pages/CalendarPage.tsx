@@ -198,6 +198,8 @@ const CreateEventPage: React.FC = () => {
       })
   
       await saveNotificationSettings()
+
+      localStorage.removeItem('events')
       
       navigate('/')
     } catch (err: any) {
@@ -488,7 +490,6 @@ const CreateEventPage: React.FC = () => {
                   onClick={() => {
                     const newValue = !emailEnabled
                     setEmailEnabled(newValue)
-                    // Если включаем — сразу сохраняем, если выключаем — тоже
                     setTimeout(() => saveNotificationSettings(), 0)
                   }}
                   disabled={isSavingSettings}

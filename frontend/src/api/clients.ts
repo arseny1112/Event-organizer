@@ -61,11 +61,7 @@ export const createEvent = (data: EventForm) =>
   api.post<{ id: number; message: string }>('/events/index.php', data)
 
 export const updateEvent = (id: number, data: any) => {
-  return api.put(`/events/update.php?id=${id}`, data, {
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded'
-    }
-  })
+  return api.put(`/events/update.php?id=${id}`, data)
 }
 
 export const deleteEvent = (id: number) =>
@@ -87,11 +83,19 @@ export const getMySubscriptions = () =>
 export const getDocuments = (event_id?: number) =>
   api.get<Document[]>('/documents/index.php', { params: { event_id } })
 
-export const uploadDocument = (event_id: number, file: File) => {
+// FIXED: Updated to accept event_id and file correctly
+export const uploadDocument = (event_id: number | null, file: File) => {
   const form = new FormData()
-  form.append('event_id', String(event_id))
+  if (event_id !== null) {
+    form.append('event_id', String(event_id))
+  }
   form.append('file', file)
-  return api.post<{ id: number; message: string }>('/documents/upload.php', form)
+  
+  return api.post<{ id: number; message: string; filename: string; original_name: string }>('/documents/upload.php', form, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
 }
 
 export const deleteDocument = (id: number) =>
@@ -122,7 +126,5 @@ export const getSettings = () =>
 
 export const updateSettings = (data: Settings) =>
   api.put<{ message: string }>('/settings/index.php', data)
-
-
 
 export default api;
