@@ -229,7 +229,7 @@ const CreateEventPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
           {/* Left Column: Form Fields */}
-          <div className="max-h-[483px] lg:col-span-8 bg-white p-[24px] rounded-[15px] shadow-sm border border-[#C0C9BB]">
+          <div className="lg:col-span-8 bg-white p-[24px] rounded-[15px] shadow-sm border border-[#C0C9BB]">
             <form onSubmit={handleSubmit} className="gap-[24px] flex flex-col">
               
               {/* Event Name */}

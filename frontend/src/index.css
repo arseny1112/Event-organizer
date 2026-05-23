@@ -25,3 +25,147 @@
 button{
   cursor: pointer;
 }
+
+
+/* --- ВЕРСИЯ ДЛЯ СЛАБОВИДЯЩИХ (ГОСТ Р 52872 / Приказ № 103) --- */
+
+/* 1. Управление размером шрифта (Глобальное увеличение) */
+body.a11y-font-large {
+  font-size: 20px !important;
+}
+
+body.a11y-font-xlarge {
+  font-size: 24px !important;
+}
+
+/* 
+   АГРЕССИВНОЕ УВЕЛИЧЕНИЕ ТЕКСТА ВНУТРИ ЭЛЕМЕНТОВ 
+   Это нужно, чтобы перебить жесткие px классы Tailwind (text-[14px] и т.д.)
+*/
+body.a11y-font-large * {
+  font-size: inherit !important;
+}
+/* Исключения для заголовков, чтобы они оставались больше основного текста */
+body.a11y-font-large h1 { font-size: 1.5em !important; }
+body.a11y-font-large h2 { font-size: 1.3em !important; }
+body.a11y-font-large h3 { font-size: 1.1em !important; }
+
+body.a11y-font-xlarge * {
+  font-size: inherit !important;
+}
+body.a11y-font-xlarge h1 { font-size: 1.5em !important; }
+body.a11y-font-xlarge h2 { font-size: 1.3em !important; }
+body.a11y-font-xlarge h3 { font-size: 1.1em !important; }
+
+
+/* 2. Скрытие изображений */
+body.a11y-no-images img:not(.a11y-keep):not([aria-hidden="true"]) {
+  display: none !important;
+}
+
+
+/* 3. Цветовые схемы (Жесткое переопределение цветов) */
+
+/* --- Черным по белому --- */
+body.a11y-black-white {
+  background-color: #fff !important;
+  color: #000 !important;
+}
+body.a11y-black-white * {
+  background-color: transparent !important;
+  color: #000 !important;
+  border-color: #000 !important;
+  box-shadow: none !important;
+}
+body.a11y-black-white a { 
+  color: #0000EE !important; 
+  text-decoration: underline !important; 
+}
+body.a11y-black-white button, 
+body.a11y-black-white input, 
+body.a11y-black-white select,
+body.a11y-black-white textarea {
+  background-color: #fff !important;
+  color: #000 !important;
+  border: 2px solid #000 !important;
+}
+
+/* --- Белым по черному (Инверсия) --- */
+body.a11y-white-black {
+  background-color: #000 !important;
+  color: #fff !important;
+}
+body.a11y-white-black * {
+  background-color: transparent !important;
+  color: #fff !important;
+  border-color: #fff !important;
+  box-shadow: none !important;
+}
+body.a11y-white-black a { 
+  color: #FFFF00 !important; 
+  text-decoration: underline !important; 
+}
+body.a11y-white-black button, 
+body.a11y-white-black input, 
+body.a11y-white-black select,
+body.a11y-white-black textarea {
+  background-color: #000 !important;
+  color: #fff !important;
+  border: 2px solid #fff !important;
+}
+/* Инпуты делаем чуть светлее, чтобы их было видно на черном фоне */
+body.a11y-white-black input[type="text"],
+body.a11y-white-black input[type="password"],
+body.a11y-white-black input[type="email"],
+body.a11y-white-black input[type="search"] {
+  background-color: #333 !important;
+}
+
+/* --- Темно-синим по голубому --- */
+body.a11y-blue-beige {
+  background-color: #9DD1FF !important;
+  color: #000055 !important;
+}
+body.a11y-blue-beige * {
+  background-color: transparent !important;
+  color: #000055 !important;
+  border-color: #000055 !important;
+  box-shadow: none !important;
+}
+body.a11y-blue-beige a { 
+  color: #0000AA !important; 
+  text-decoration: underline !important; 
+}
+body.a11y-blue-beige button, 
+body.a11y-blue-beige input, 
+body.a11y-blue-beige select,
+body.a11y-blue-beige textarea {
+  background-color: #9DD1FF !important;
+  color: #000055 !important;
+  border: 2px solid #000055 !important;
+}
+
+/* 4. Фикс для Панели настроек (чтобы она сама не ломалась от своих же стилей) */
+.a11y-panel {
+  background-color: #fff !important;
+  color: #000 !important;
+  border-bottom: 2px solid #000 !important;
+  z-index: 9999 !important;
+}
+.a11y-panel * {
+  /* Возвращаем нормальные цвета внутри панели */
+  color: #000 !important;
+  background-color: transparent !important;
+  border-color: #000 !important;
+}
+.a11y-panel button {
+  background-color: #fff !important;
+  border: 1px solid #000 !important;
+}
+.a11y-panel button.active {
+  background-color: #000 !important;
+  color: #fff !important;
+}
+.a11y-panel button:hover {
+  background-color: #eee !important;
+}
