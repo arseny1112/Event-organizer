@@ -61,15 +61,23 @@ const DashboardPage: React.FC<{ searchQuery?: string }> = ({ searchQuery = '' })
   const handleOpenEdit = (event: Event) => {
     setEditingEventId(event.id)
     
-    const dateObj = new Date(event.start_datetime)
-    const localIsoString = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000)).toISOString().slice(0, 16)
+    // Просто берем строку из события. 
+    // Предполагаем, что с бэкенда приходит строка вида "2026-05-24 14:00:00"
+    // Нам нужно превратить её в формат инпута "2026-05-24T14:00"
+    
+    // Заменяем пробел на T и обрезаем секунды, если они есть
+    let rawDate = event.start_datetime;
+    if (!rawDate) return;
 
+    // Если формат "YYYY-MM-DD HH:mm:ss", меняем пробел на T
+    let formattedForInput = rawDate.replace(' ', 'T').slice(0, 16);
+    
     setEditForm({
       title: event.title,
       description: event.description || '',
       location: event.location || '',
       category_id: event.category_id,
-      start_datetime: localIsoString
+      start_datetime: formattedForInput
     })
     setIsEditModalOpen(true)
   }
@@ -103,44 +111,40 @@ const DashboardPage: React.FC<{ searchQuery?: string }> = ({ searchQuery = '' })
 
     setIsSaving(true)
     try {
-      const startDate = new Date(editForm.start_datetime)
-      const endDate = new Date(startDate)
-      endDate.setHours(startDate.getHours() + 1)
+      // editForm.start_datetime сейчас имеет вид "2026-05-24T14:00"
+      // Нам нужно отправить на бэкэнд "2026-05-24 14:00:00"
+      
+      const localDateTimeString = editForm.start_datetime.replace('T', ' ') + ':00';
+
+      // Вычисляем конец события (+1 час) вручную, чтобы не лезть в объекты Date и не ловить сдвиги
+      // Парсим дату обратно в объект только для математики, но форматировать будем вручную
+      const tempDate = new Date(editForm.start_datetime);
+      tempDate.setHours(tempDate.getHours() + 1);
+      
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      const endDateTimeString = 
+        `${tempDate.getFullYear()}-${pad(tempDate.getMonth() + 1)}-${pad(tempDate.getDate())} ` +
+        `${pad(tempDate.getHours())}:${pad(tempDate.getMinutes())}:00`;
 
       const payload = {
         title: editForm.title,
         description: editForm.description,
         location: editForm.location,
         category_id: editForm.category_id,
-        start_datetime: startDate.toISOString().slice(0, 19).replace('T', ' '),
-        end_datetime: endDate.toISOString().slice(0, 19).replace('T', ' '),
+        start_datetime: localDateTimeString, // Отправляем чистую строку
+        end_datetime: endDateTimeString,     // Отправляем чистую строку
       }
 
-      // Сохраняем в БД
       await updateEvent(editingEventId, payload)
 
-      // После успешного ответа обновляем локальное состояние
-      const updatedEvents = events.map(event =>
-        event.id === editingEventId
-          ? {
-              ...event,
-              ...payload,
-              start_datetime: startDate.toISOString(),
-              end_datetime: endDate.toISOString(),
-            }
-          : event
-      )
-
-      setEvents(updatedEvents)
+      // Перезагружаем список, чтобы увидеть изменения
+      await loadEvents()
 
       handleCloseEdit()
     } catch (err: any) {
-      console.error('FULL ERROR:', err)
-    
-      console.log('RESPONSE DATA:', err.response?.data)
-    
-      alert(JSON.stringify(err.response?.data, null, 2))
-    }finally {
+      console.error('Ошибка сохранения:', err)
+      alert('Произошла ошибка при сохранении.')
+    } finally {
       setIsSaving(false)
     }
   }
@@ -363,7 +367,7 @@ const DashboardPage: React.FC<{ searchQuery?: string }> = ({ searchQuery = '' })
                       <div key={event.id} className={`p-6 transition-colors ${isPast ? 'bg-[#F8F9FA]' : 'hover:bg-[#EFF4FF]'}`}>
                         <div className="flex gap-6">
                           
-                          <div className="flex-shrink-0 w-16 text-center">
+                          <div className="flex-shrink-0  text-center">
                             <div className={`text-[32px] font-bold leading-none ${isPast ? 'text-[#94A3B8]' : 'text-[#05591D]'}`}>
                               {day}
                             </div>

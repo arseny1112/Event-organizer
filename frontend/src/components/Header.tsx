@@ -1,4 +1,3 @@
-// components/Header.tsx
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -8,13 +7,14 @@ interface HeaderProps {
   onHelpClick?: () => void
   onProfileClick?: () => void
   onLogout?: () => void
+  onA11yClick?: () => void // <-- Добавили этот проп
 }
 
 const Header: React.FC<HeaderProps> = ({
-  
   onSearch,
   onNotificationsClick,
   onProfileClick,
+  onA11yClick, // <-- Деструктуризация пропа
 }) => {
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
   const navigate = useNavigate()
@@ -28,9 +28,11 @@ const Header: React.FC<HeaderProps> = ({
       navigate(`/?search=${encodeURIComponent(query)}`)
     }
   }
+
   return (
-    <header className="flex items-center justify-between w-full h-[70px] sm:h-[75px] md:h-[80px] bg-white border-b border-gray-200 px-3 sm:px-4 md:px-6 shrink-0">
+    <header className="flex items-center justify-between w-full h-[70px] sm:h-[75px] md:h-[80px] bg-white border-b border-gray-200 px-3 sm:px-4 md:px-6 shrink-0 z-40 relative">
       
+      {/* Логотип */}
       <Link className="flex items-center gap-2 sm:gap-3 md:gap-4" to={'/'}>
         <div className="flex flex-col min-w-0">
           <h1 className="text-[18px] sm:text-[20px] md:text-[24px] font-bold text-[#047857] leading-tight truncate">
@@ -44,6 +46,7 @@ const Header: React.FC<HeaderProps> = ({
 
       <div className="flex items-center gap-1 sm:gap-2 md:gap-4">
         
+        {/* Поиск */}
         <div className={`${isMobileSearchOpen ? 'flex' : 'hidden'} sm:flex absolute sm:relative left-0 right-0 top-[70px] sm:top-0 bg-white sm:bg-transparent px-3 sm:px-0 py-2 sm:py-0 border-b sm:border-0 border-gray-200 z-40`}>
           <div className="relative w-full sm:w-auto max-w-[600px] mx-auto sm:mx-0">
             <input
@@ -76,6 +79,7 @@ const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
+        {/* Кнопка мобильного поиска */}
         <button 
           onClick={() => setIsMobileSearchOpen(true)}
           className={`sm:hidden p-2 text-[#047857] hover:bg-[#ECFDF5] rounded-lg transition-colors ${isMobileSearchOpen ? 'hidden' : 'block'}`}
@@ -85,8 +89,10 @@ const Header: React.FC<HeaderProps> = ({
           </svg>
         </button>
 
+        {/* Правая часть: Уведомления, Профиль, Доступность */}
         <div className={`flex items-center gap-0.5 sm:gap-1 ${isMobileSearchOpen ? 'sm:flex' : 'flex'}`}>
           
+          {/* Уведомления */}
           <Link to='/settings'>
             <button
               onClick={onNotificationsClick}
@@ -99,6 +105,7 @@ const Header: React.FC<HeaderProps> = ({
             </button>
           </Link>
 
+          {/* Профиль */}
           <div>
             <button
               onClick={onProfileClick}
@@ -108,12 +115,26 @@ const Header: React.FC<HeaderProps> = ({
               <svg width="14" height="14" viewBox="0 0 20 22" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path fillRule="evenodd" clipRule="evenodd" d="M10 2C8.34315 2 7 3.34315 7 5C7 6.65685 8.34315 8 10 8C11.6569 8 13 6.65685 13 5C13 3.34315 11.6569 2 10 2ZM5 5C5 2.23858 7.23858 0 10 0C12.7614 0 15 2.23858 15 5C15 7.76142 12.7614 10 10 10C7.23858 10 5 7.76142 5 5ZM3.77844 13.15C5.77388 12.2555 8.184 12 10 12C11.816 12 14.2261 12.2555 16.2216 13.15C18.2529 14.0606 20 15.722 20 18.5V19.5C20 20.8546 18.9048 22 17.5183 22H2.48169C1.09519 22 0 20.8546 0 19.5V18.5C0 15.722 1.74705 14.0606 3.77844 13.15ZM4.59656 14.975C3.00295 15.6894 2 16.778 2 18.5V19.5C2 19.7821 2.23155 20 2.48169 20H17.5183C17.7684 20 18 19.7821 18 19.5V18.5C18 16.778 16.9971 15.6894 15.4034 14.975C13.7739 14.2445 11.684 14 10 14C8.316 14 6.22612 14.2445 4.59656 14.975Z" fill="#065F46"/>
               </svg>
-              <span className="text-[12px] sm:text-[13px] md:text-[14px] font-medium text-[#047857] whitespace-nowrap">
+              <span className="text-[12px] sm:text-[13px] md:text-[14px] font-medium text-[#047857] whitespace-nowrap hidden sm:inline">
                 {localStorage.getItem('name') || 'Профиль'}
               </span>
             </button>
-
           </div>
+
+          {/* КНОПКА ДЛЯ СЛАБОВИДЯЩИХ (Глаз) */}
+          {onA11yClick && (
+            <button
+              onClick={onA11yClick}
+              className="p-2 text-[#047857] hover:bg-[#ECFDF5] rounded-lg transition-colors ml-2 border-l border-gray-200 sm:border-0"
+              title="Версия для слабовидящих"
+              aria-label="Версия для слабовидящих"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </button>
+          )}
 
         </div>
       </div>

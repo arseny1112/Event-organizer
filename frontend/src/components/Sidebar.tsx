@@ -1,4 +1,3 @@
-// components/Sidebar.tsx
 import React from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
@@ -12,9 +11,11 @@ interface SidebarProps {
   items: MenuItem[]
   isOpen?: boolean
   onClose?: () => void
+  onA11yClick?: () => void // Новая пропса
+  isA11yEnabled?: boolean // Новая пропса
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ items, isOpen = true, onClose }) => {
+const Sidebar: React.FC<SidebarProps> = ({ items, isOpen = true, onClose, onA11yClick, isA11yEnabled }) => {
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -27,13 +28,13 @@ const Sidebar: React.FC<SidebarProps> = ({ items, isOpen = true, onClose }) => {
 
   return (
     <>
-      {/* Сайдбар */}
       <aside className={`
          bg-white border-r border-gray-200
          lg:static left-0 top-0 z-50 w-[72px]
         transition-all duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
          xl:w-[280px] lg:w-[256px] md:w-[200px] sm:w-[72px]
+         flex flex-col justify-between pb-4
       `}>
 
         <nav className="flex flex-col pt-[12px] gap-[4px]">
@@ -69,6 +70,30 @@ const Sidebar: React.FC<SidebarProps> = ({ items, isOpen = true, onClose }) => {
             )
           })}
         </nav>
+
+        {/* КНОПКА ДЛЯ СЛАБОВИДЯЩИХ ВНИЗУ САЙДБАРА */}
+        {onA11yClick && (
+          <div className="mt-auto px-2">
+            <button
+              onClick={onA11yClick}
+              className={`
+                w-full flex items-center justify-center p-3 rounded-md transition-colors
+                ${isA11yEnabled ? 'bg-black text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}
+              `}
+              title="Версия для слабовидящих"
+              aria-label="Версия для слабовидящих"
+            >
+              {/* Иконка глаза */}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <span className="hidden xl:block lg:block md:block sm:hidden ml-2 text-xs font-bold uppercase">
+                Для слабовидящих
+              </span>
+            </button>
+          </div>
+        )}
       </aside>
     </>
   )
