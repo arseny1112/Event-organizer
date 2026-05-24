@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { getEvents } from '../api/clients' // updateEvent больше не нужен
+import { deleteEvent, getEvents, updateEvent } from '../api/clients'
 import type { Event } from '../api/types'
 import CalendarWidget from '../components/CalendarWidget'
 
@@ -43,28 +43,17 @@ const DashboardPage: React.FC<{ searchQuery?: string }> = ({ searchQuery = '' })
     setSelectedCategories(prev => ({ ...prev, [category]: !prev[category] }))
   }
 
-  // Загрузка событий при монтировании
   useEffect(() => {
-    loadEventsFromStorageOrAPI()
+    loadEvents()
   }, [])
 
-  // Функция загрузки: сначала пробуем localStorage, если пусто — API
-  const loadEventsFromStorageOrAPI = async () => {
+  const loadEvents = async () => {
     setIsLoading(true)
     setError(null)
     try {
-      const storedEvents = localStorage.getItem('events')
-      if (storedEvents) {
-        setEvents(JSON.parse(storedEvents))
-      } else {
-        const response = await getEvents()
-        setEvents(response.data)
-        localStorage.setItem('events', JSON.stringify(response.data))
-      }
-    } catch (err) {
-      console.error('Load events error:', err)
-      setError('Не удалось загрузить события')
-    } finally {
+      const response = await getEvents()
+      setEvents(response.data)
+    }  finally {
       setIsLoading(false)
     }
   }
@@ -72,18 +61,36 @@ const DashboardPage: React.FC<{ searchQuery?: string }> = ({ searchQuery = '' })
   const handleOpenEdit = (event: Event) => {
     setEditingEventId(event.id)
     
-    const dateObj = new Date(event.start_datetime)
-    const localIsoString = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000)).toISOString().slice(0, 16)
+    // Просто берем строку из события. 
+    // Предполагаем, что с бэкенда приходит строка вида "2026-05-24 14:00:00"
+    // Нам нужно превратить её в формат инпута "2026-05-24T14:00"
+    
+    // Заменяем пробел на T и обрезаем секунды, если они есть
+    let rawDate = event.start_datetime;
+    if (!rawDate) return;
 
+    // Если формат "YYYY-MM-DD HH:mm:ss", меняем пробел на T
+    let formattedForInput = rawDate.replace(' ', 'T').slice(0, 16);
+    
     setEditForm({
       title: event.title,
       description: event.description || '',
       location: event.location || '',
       category_id: event.category_id,
-      start_datetime: localIsoString
+      start_datetime: formattedForInput
     })
     setIsEditModalOpen(true)
   }
+
+  const handleDelete = async (id: number) => {
+      if (!window.confirm('Удалить этот документ?')) return
+      try {
+        await deleteEvent(id)
+        await loadEvents()
+      } catch (err) {
+        setError('Ошибка удаления')
+      }
+    }
 
   const handleCloseEdit = () => {
     setIsEditModalOpen(false)
@@ -98,51 +105,49 @@ const DashboardPage: React.FC<{ searchQuery?: string }> = ({ searchQuery = '' })
     }))
   }
 
-  // Сохранение изменений ТОЛЬКО в localStorage и локальном состоянии
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingEventId) return
 
     setIsSaving(true)
     try {
-      // Рассчитываем дату окончания (+1 час)
-      const startDate = new Date(editForm.start_datetime)
-      const endDate = new Date(startDate)
-      endDate.setHours(startDate.getHours() + 1)
+      // editForm.start_datetime сейчас имеет вид "2026-05-24T14:00"
+      // Нам нужно отправить на бэкэнд "2026-05-24 14:00:00"
+      
+      const localDateTimeString = editForm.start_datetime.replace('T', ' ') + ':00';
 
-      // Обновляем событие в локальном массиве
-      const updatedEvents = events.map(event => 
-        event.id === editingEventId 
-          ? {
-              ...event,
-              title: editForm.title,
-              description: editForm.description,
-              location: editForm.location,
-              category_id: editForm.category_id,
-              start_datetime: startDate.toISOString(),
-              end_datetime: endDate.toISOString() // добавляем end_datetime для совместимости
-            }
-          : event
-      )
+      // Вычисляем конец события (+1 час) вручную, чтобы не лезть в объекты Date и не ловить сдвиги
+      // Парсим дату обратно в объект только для математики, но форматировать будем вручную
+      const tempDate = new Date(editForm.start_datetime);
+      tempDate.setHours(tempDate.getHours() + 1);
+      
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      const endDateTimeString = 
+        `${tempDate.getFullYear()}-${pad(tempDate.getMonth() + 1)}-${pad(tempDate.getDate())} ` +
+        `${pad(tempDate.getHours())}:${pad(tempDate.getMinutes())}:00`;
 
-      // Обновляем состояние
-      setEvents(updatedEvents)
+      const payload = {
+        title: editForm.title,
+        description: editForm.description,
+        location: editForm.location,
+        category_id: editForm.category_id,
+        start_datetime: localDateTimeString, // Отправляем чистую строку
+        end_datetime: endDateTimeString,     // Отправляем чистую строку
+      }
 
-      // Сохраняем в localStorage
-      localStorage.setItem('events', JSON.stringify(updatedEvents))
+      await updateEvent(editingEventId, payload)
 
-      console.log('Событие обновлено в localStorage:', updatedEvents.find(e => e.id === editingEventId))
+      // Перезагружаем список, чтобы увидеть изменения
+      await loadEvents()
 
       handleCloseEdit()
-    } catch (err) {
-      console.error('Update event error:', err)
-      alert('Ошибка при сохранении изменений')
+    } catch (err: any) {
+      console.error('Ошибка сохранения:', err)
+      alert('Произошла ошибка при сохранении.')
     } finally {
       setIsSaving(false)
     }
   }
-
-  // --- Остальная логика фильтрации и отображения без изменений ---
 
   const categoryMap: Record<number, keyof typeof selectedCategories> = {
     1: 'meeting',
@@ -277,7 +282,6 @@ const DashboardPage: React.FC<{ searchQuery?: string }> = ({ searchQuery = '' })
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
-          {/* Левая колонка: Фильтры и Календарь */}
           <div className="lg:col-span-4 space-y-6">
             
             <div className="bg-[#FFFFFF] border-[1px] border-[#C0C9BB] rounded-[15px] p-[16px]">
@@ -327,7 +331,6 @@ const DashboardPage: React.FC<{ searchQuery?: string }> = ({ searchQuery = '' })
 
           </div>
 
-          {/* Правая колонка: Список событий */}
           <div className="lg:col-span-8">
             <div className="bg-white border-2 border-[#EFF4FF] rounded-[16px] overflow-hidden">
               
@@ -364,8 +367,7 @@ const DashboardPage: React.FC<{ searchQuery?: string }> = ({ searchQuery = '' })
                       <div key={event.id} className={`p-6 transition-colors ${isPast ? 'bg-[#F8F9FA]' : 'hover:bg-[#EFF4FF]'}`}>
                         <div className="flex gap-6">
                           
-                          {/* Дата и время слева */}
-                          <div className="flex-shrink-0 w-16 text-center">
+                          <div className="flex-shrink-0  text-center">
                             <div className={`text-[32px] font-bold leading-none ${isPast ? 'text-[#94A3B8]' : 'text-[#05591D]'}`}>
                               {day}
                             </div>
@@ -374,7 +376,6 @@ const DashboardPage: React.FC<{ searchQuery?: string }> = ({ searchQuery = '' })
                             {isPast && <div className="text-[10px] text-[#94A3B8] mt-1 uppercase font-medium tracking-wider">Прошло</div>}
                           </div>
 
-                          {/* Основная информация */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between">
                                 <div className="flex-1">
@@ -413,8 +414,21 @@ const DashboardPage: React.FC<{ searchQuery?: string }> = ({ searchQuery = '' })
                                     )}
                                 </div>
                                 
-                                {/* Кнопка редактирования */}
                                 {!isPast && (
+                                   <>
+                                    <button
+                                      onClick={() => handleDelete(event.id)}
+                                      className="p-2 text-[#94A3B8] hover:text-red-600 transition-colors"
+                                      title="Удалить событие"
+                                      >
+                                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <polyline points="3 6 5 6 21 6"></polyline>
+                                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                      <line x1="10" y1="11" x2="10" y2="17"></line>
+                                      <line x1="14" y1="11" x2="14" y2="17"></line>
+                                      </svg>
+                                      </button>
+
                                     <button 
                                         onClick={() => handleOpenEdit(event)}
                                         className="ml-4 p-2 text-[#94A3B8] hover:text-[#015FAF] transition-colors"
@@ -425,6 +439,7 @@ const DashboardPage: React.FC<{ searchQuery?: string }> = ({ searchQuery = '' })
                                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                         </svg>
                                     </button>
+                                    </>
                                 )}
                             </div>
                           </div>
@@ -439,12 +454,10 @@ const DashboardPage: React.FC<{ searchQuery?: string }> = ({ searchQuery = '' })
         </div>
       </div>
 
-      {/* --- Модальное окно редактирования --- */}
       {isEditModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0B1C30]/50 backdrop-blur-sm">
           <div className="bg-white rounded-[16px] shadow-xl w-full max-w-md overflow-hidden border border-[#EFF4FF]">
             
-            {/* Заголовок модалки */}
             <div className="px-6 py-4 border-b border-[#EFF4FF] flex justify-between items-center bg-[#EFF4FF]">
               <h3 className="text-[20px] font-bold text-[#0B1C30]">Редактирование события</h3>
               <button onClick={handleCloseEdit} className="text-[#94A3B8] hover:text-[#0B1C30] transition-colors">
@@ -455,10 +468,8 @@ const DashboardPage: React.FC<{ searchQuery?: string }> = ({ searchQuery = '' })
               </button>
             </div>
 
-            {/* Форма */}
             <form onSubmit={handleSaveEdit} className="p-6 space-y-4">
               
-              {/* Название */}
               <div>
                 <label className="block text-[14px] font-medium text-[#0B1C30] mb-1">Название</label>
                 <input
@@ -472,7 +483,6 @@ const DashboardPage: React.FC<{ searchQuery?: string }> = ({ searchQuery = '' })
                 />
               </div>
 
-              {/* Категория и Дата */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[14px] font-medium text-[#0B1C30] mb-1">Категория</label>
@@ -500,7 +510,6 @@ const DashboardPage: React.FC<{ searchQuery?: string }> = ({ searchQuery = '' })
                 </div>
               </div>
 
-              {/* Место проведения */}
               <div>
                 <label className="block text-[14px] font-medium text-[#0B1C30] mb-1">Место проведения</label>
                 <input
@@ -513,7 +522,6 @@ const DashboardPage: React.FC<{ searchQuery?: string }> = ({ searchQuery = '' })
                 />
               </div>
 
-              {/* Описание */}
               <div>
                 <label className="block text-[14px] font-medium text-[#0B1C30] mb-1">Описание</label>
                 <textarea
@@ -526,7 +534,6 @@ const DashboardPage: React.FC<{ searchQuery?: string }> = ({ searchQuery = '' })
                 />
               </div>
 
-              {/* Кнопки действий */}
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
