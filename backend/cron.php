@@ -6,19 +6,20 @@ require_once __DIR__ . '/email.php';
 
 $lockFile = __DIR__ . '/cron.lock';
 
-// Если скрипт уже выполняется — завершаем
 if (file_exists($lockFile)) {
-    $pid = file_get_contents($lockFile);
-    if (posix_kill($pid, 0)) {
-        echo "⚠️ Крон уже запущен (PID: $pid). Выход.\n";
-        exit;
+    $pid = (int)file_get_contents($lockFile);
+    if ($pid > 0 && posix_kill($pid, 0)) {
+        $psOutput = shell_exec("ps -p $pid -o command= 2>/dev/null");
+        if ($psOutput && strpos($psOutput, 'cron.php') !== false) {
+            echo "⚠️ Крон уже запущен (PID: $pid). Выход.\n";
+            exit;
+        }
     }
+    unlink($lockFile); 
 }
 
-// Создаём lock-файл с текущим PID
 file_put_contents($lockFile, getmypid());
 
-// Удаляем lock-файл при завершении
 register_shutdown_function(function() use ($lockFile) {
     if (file_exists($lockFile)) {
         unlink($lockFile);
@@ -29,7 +30,6 @@ register_shutdown_function(function() use ($lockFile) {
 $vkToken   = 'vk1.a.6jpksTBxf8rTJn0xNYsLSPA48UXGWgBxwx716enHwfkZeIfla3N0amoZYD9myOYouIp5qE5rHZ-ysN9ifcf6FuqygHivPa9o4407Xrplxiy3_W8qFoRVe_y4AV3rEgQMj6aMX2Yf-AVK6X19kX7cwUJxUhFFtXLgl7AZAvo1lNfkEHi3UsYb7oPNvD2JYEhegqbNP3iYDmcPC0a2vRI8jQ';
 $vkGroupId = '238638283';
 
-// Находим уведомления которые пора отправить
 $stmt = $pdo->prepare(
     'SELECT n.*, 
             e.title, e.start_datetime, e.location,
@@ -41,7 +41,7 @@ $stmt = $pdo->prepare(
      LEFT JOIN settings s ON s.user_id = u.id
      WHERE n.sent = 0
        AND n.notify_at <= NOW()
-       AND e.start_datetime > NOW()  -- 🔥 НЕ ОТПРАВЛЯТЬ, ЕСЛИ СОБЫТИЕ УЖЕ НАЧАЛОСЬ
+       AND e.start_datetime > NOW()  
        AND NOT (
          n.type = "day_before" 
          AND e.start_datetime <= DATE_ADD(NOW(), INTERVAL 2 HOUR)
@@ -62,7 +62,6 @@ foreach ($notifications as $notif) {
     
     $emailSubject = "⏰ Напоминание: {$notif['title']}";
 
-    // 🔥 Email уведомление
     if ($notif['email_notify'] && !empty($notif['email'])) {
         if (sendEmail($notif['email'], $emailSubject, $message)) {
             echo "✅ Email отправлен пользователю {$notif['user_name']} ({$notif['email']})\n";
@@ -71,7 +70,6 @@ foreach ($notifications as $notif) {
         }
     }
 
-    // 🔥 VK уведомление
     if ($notif['vk_notify'] && $notif['vk_id']) {
         $params = [
             'user_id'   => $notif['vk_id'],
@@ -101,7 +99,6 @@ foreach ($notifications as $notif) {
         }
     }
 
-    // Помечаем как отправленное
     $pdo->prepare('UPDATE notifications SET sent = 1 WHERE id = ?')
         ->execute([$notif['id']]);
 }
