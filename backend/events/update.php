@@ -18,6 +18,12 @@ try {
         throw new Exception('PDO НЕ существует');
     }
 
+    // --- ВАЖНОЕ ИЗМЕНЕНИЕ ---
+    // Отключаем автоматическую конвертацию часовых поясов в MySQL.
+    // Время будет сохраняться ровно так, как пришла строка из PHP.
+    $pdo->exec("SET time_zone = '+00:00'"); 
+    // ------------------------
+
     $input = file_get_contents('php://input');
     $data = json_decode($input, true);
     $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
@@ -35,6 +41,8 @@ try {
     $description = $data['description'] ?? '';
     $location = $data['location'] ?? '';
     $category_id = intval($data['category_id'] ?? 0);
+    
+    // Принимаем даты как строки, без изменений
     $start_datetime = $data['start_datetime'] ?? '';
     $end_datetime = $data['end_datetime'] ?? '';
 
@@ -58,37 +66,15 @@ try {
         throw new Exception('Ошибка prepare');
     }
 
-    $stmt->execute([
+    $result = $stmt->execute([
         $title,
         $description,
         $location,
         $category_id,
-        $start_datetime,
+        $start_datetime, // Сохраняем строку "2026-05-24 14:00:00" как есть
         $end_datetime,
         $id
     ]);
-
-    $users_stmt = $pdo->prepare('SELECT DISTINCT user_id FROM notifications WHERE event_id = ?');
-    $users_stmt->execute([$id]);
-    $userIds = $users_stmt->fetchAll(PDO::FETCH_COLUMN);
-
-    $pdo->prepare('DELETE FROM notifications WHERE event_id = ? AND sent = 0')->execute([$id]);
-
-    $start = new DateTime($start_datetime);
-
-    foreach ($userIds as $userId) {
-        $dayBefore = (clone $start)->modify('-1 day');
-        if ($dayBefore > new DateTime()) {
-            $pdo->prepare('INSERT INTO notifications (user_id, event_id, type, notify_at, sent) VALUES (?, ?, ?, ?, 0)')
-                ->execute([$userId, $id, 'day_before', $dayBefore->format('Y-m-d H:i:s')]);
-        }
-
-        $hourBefore = (clone $start)->modify('-1 hour');
-        if ($hourBefore > new DateTime()) {
-            $pdo->prepare('INSERT INTO notifications (user_id, event_id, type, notify_at, sent) VALUES (?, ?, ?, ?, 0)')
-                ->execute([$userId, $id, 'hour_before', $hourBefore->format('Y-m-d H:i:s')]);
-        }
-    }
 
     echo json_encode([
         'success' => true,
