@@ -3,7 +3,6 @@ import { getSettings, updateSettings } from '../api/clients'
 
 const VK_GROUP_ID = '238638283'
 const VK_DIALOG_URL = `https://vk.com/im?sel=-${VK_GROUP_ID}&message=Привязать уведомления`
-const VK_COMMAND_TEXT = 'Привязать уведомления'
 
 const SettingsPage: React.FC = () => {
   const [vkEnabled, setVkEnabled] = useState(false)
@@ -12,9 +11,36 @@ const SettingsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [showVkModal, setShowVkModal] = useState(false)
+  
+  const [isA11yMode, setIsA11yMode] = useState(false)
 
   useEffect(() => {
     loadSettings()
+    
+    const checkA11y = () => {
+      const saved = localStorage.getItem('a11y-settings')
+      if (saved) {
+        try {
+          const settings = JSON.parse(saved)
+          setIsA11yMode(!!settings.isEnabled)
+        } catch {
+          setIsA11yMode(false)
+        }
+      } else {
+        setIsA11yMode(document.body.classList.contains('a11y-mode'))
+      }
+    }
+
+    checkA11y()
+    window.addEventListener('storage', checkA11y)
+    
+    const observer = new MutationObserver(checkA11y)
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] })
+
+    return () => {
+      window.removeEventListener('storage', checkA11y)
+      observer.disconnect()
+    }
   }, [])
 
   const loadSettings = async () => {
@@ -80,13 +106,7 @@ const SettingsPage: React.FC = () => {
     }
   }
 
-  const copyVkCommand = async () => {
-    try {
-      await navigator.clipboard.writeText(VK_COMMAND_TEXT)
-    } catch (err) {
-      console.error('Copy failed:', err)
-    }
-  }
+  
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -108,6 +128,24 @@ const SettingsPage: React.FC = () => {
       alert('Ошибка при сохранении')
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const getToggleStyle = (isEnabled: boolean) => {
+    if (isA11yMode) {
+      return {
+        bg: isEnabled ? '#000000' : '#FFFFFF',
+        border: '#000000',
+        knob: isEnabled ? '#FFFFFF' : '#000000',
+        borderWidth: '2px'
+      }
+    }
+    
+    return {
+      bg: isEnabled ? '#05591D' : '#E2E8F0', 
+      border: isEnabled ? '#05591D' : '#CBD5E1',
+      knob: isEnabled ? '#FFFFFF' : '#0B1C30', 
+      borderWidth: '0px'
     }
   }
 
@@ -192,16 +230,32 @@ const SettingsPage: React.FC = () => {
                 </h2>
               </div>
 
-              <button
-                onClick={handleVkToggle}
-                className={`w-11 h-5.5 sm:w-12 sm:h-6 rounded-full p-0.5 sm:p-1 transition-colors duration-200 flex-shrink-0 ${
-                  vkEnabled ? 'bg-[#05591D]' : 'bg-[#CBD5E1]'
-                }`}
-              >
-                <div className={`w-3.5 h-3.5 sm:w-4 sm:h-4 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
-                  vkEnabled ? 'translate-x-6 sm:translate-x-6' : 'translate-x-0'
-                }`} />
-              </button>
+              {/* ТОГЛ VK С ПОДДЕРЖКОЙ A11Y */}
+              {/* ТОГЛ VK С ПОДДЕРЖКОЙ A11Y */}
+            {(() => {
+              const styles = getToggleStyle(vkEnabled);
+              return (
+                <button
+                  onClick={handleVkToggle}
+                  // ДОБАВЛЕН КЛАСС a11y-toggle-vk
+                  className={`flex items-center w-11 h-5.5 sm:w-12 sm:h-6 rounded-full p-0.5 sm:p-1 transition-colors duration-200 flex-shrink-0 a11y-toggle-vk ${vkEnabled ? 'active-toggle' : ''}`}
+                  style={{
+                    backgroundColor: styles.bg,
+                    borderColor: styles.border,
+                    borderWidth: styles.borderWidth,
+                  }}
+                  aria-label={vkEnabled ? "Выключить уведомления VK" : "Включить уведомления VK"}
+                >
+                  <div 
+                    style={{ backgroundColor: styles.knob }}
+                    // ДОБАВЛЕН КЛАСС a11y-toggle-knob для управления шариком
+                    className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full shadow-md transform transition-transform duration-200 a11y-toggle-knob ${
+                      vkEnabled ? 'translate-x-6 sm:translate-x-6' : 'translate-x-0'
+                    }`} 
+                  />
+                </button>
+              );
+            })()}
             </div>
 
             <p className="text-[13px] sm:text-[14px] text-[#5F4900] mb-3 sm:mb-4 leading-relaxed">
@@ -245,16 +299,32 @@ const SettingsPage: React.FC = () => {
                 </h2>
               </div>
 
-              <button
-                onClick={() => setEmailEnabled(!emailEnabled)}
-                className={`w-11 h-5.5 sm:w-12 sm:h-6 rounded-full p-0.5 sm:p-1 transition-colors duration-200 flex-shrink-0 ${
-                  emailEnabled ? 'bg-[#05591D]' : 'bg-[#CBD5E1]'
-                }`}
-              >
-                <div className={`w-3.5 h-3.5 sm:w-4 sm:h-4 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
-                  emailEnabled ? 'translate-x-6 sm:translate-x-6' : 'translate-x-0'
-                }`} />
-              </button>
+              {/* ТОГЛ EMAIL С ПОДДЕРЖКОЙ A11Y */}
+             {/* ТОГЛ EMAIL С ПОДДЕРЖКОЙ A11Y */}
+              {(() => {
+                const styles = getToggleStyle(emailEnabled);
+                return (
+                  <button
+                    onClick={() => setEmailEnabled(!emailEnabled)}
+                    // ДОБАВЛЕН КЛАСС a11y-toggle-email
+                    className={`flex items-center w-11 h-5.5 sm:w-12 sm:h-6 rounded-full p-0.5 sm:p-1 transition-colors duration-200 flex-shrink-0 a11y-toggle-email ${emailEnabled ? 'active-toggle' : ''}`}
+                    style={{
+                      backgroundColor: styles.bg,
+                      borderColor: styles.border,
+                      borderWidth: styles.borderWidth,
+                    }}
+                    aria-label="Переключить напоминания на email"
+                  >
+                    <div 
+                      style={{ backgroundColor: styles.knob }}
+                      // ДОБАВЛЕН КЛАСС a11y-toggle-knob
+                      className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full shadow-md transform transition-transform duration-200 a11y-toggle-knob ${
+                        emailEnabled ? 'translate-x-6 sm:translate-x-6' : 'translate-x-0'
+                      }`} 
+                    />
+                  </button>
+                );
+              })()}   
             </div>
 
             <p className="text-[13px] sm:text-[14px] text-[#5F4900] mb-3 sm:mb-4 leading-relaxed">
